@@ -1,2 +1,4 @@
-telethon
-deep-translator
+aiogram==3.0.0b7
+supabase==1.0.0
+python-dotenv
+httpx
