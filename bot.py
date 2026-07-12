@@ -412,7 +412,7 @@ async def inline_callback_handler(update: Update, context: ContextTypes.DEFAULT_
             reply_markup=get_games_inline_keyboard(),
             parse_mode="HTML"
         )
-        return
+                return
 
     # Показ истории
     elif data == "menu_history":
