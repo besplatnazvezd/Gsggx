@@ -403,9 +403,9 @@ async def inline_callback_handler(update: Update, context: ContextTypes.DEFAULT_
 
     # Открытие списка игр
     elif data == "open_games_list":
-        await query.edit_message_text(
-            "<b>🎮 ИГРОВОЙ СЕКТОР mCoin</b>\n"
-            "═" * 30 + "\n"
+                await query.edit_message_text(
+            "<b>🎮 ИГРОВОЙ СЕКТОР mCoin</b>\n" +
+            "=" * 30 + "\n"
             "Выберите игру для проверки удачи. \n\n"
             "⚠️ <i>Правило: принять участие в любой игре можно строго раз в 10 минут!</i>\n"
             "🎈 <i>В играх нет ставок, вы ничего не теряете!</i>",
@@ -431,9 +431,10 @@ async def inline_callback_handler(update: Update, context: ContextTypes.DEFAULT_
         bot_info = await context.bot.get_me()
         link = f"https://t.me/{bot_info.username}?start=ref_{user_id}"
         text = (
-            f"<b>👥 РЕФЕРАЛЬНАЯ СИСТЕМА</b>\n"
-            f"═" * 30 + "\n"
-            f"Приглашайте друзей и получайте mCoin!\n\n"
+    f"<b>👥 РЕФЕРАЛЬНАЯ СИСТЕМА</b>\n"
+    f"{'=' * 30}\n"
+    f"Приглашайте друзей и получайте mCoin!\n\n"
+        )
             f"🎁 <b>Бонус:</b> вы получите <code>{REFERRAL_REWARD:,} mCoin</code> за каждого приведенного реферала, "
             f"когда он пройдет первую проверку подписок.\n\n"
             f"🔗 <b>Ваша ссылка для приглашений:</b>\n<code>{link}</code>"
@@ -447,7 +448,7 @@ async def inline_callback_handler(update: Update, context: ContextTypes.DEFAULT_
         min_rem = rem_seconds // 60
         sec_rem = rem_seconds % 60
         await query.message.reply_text(
-            f"⏳ <b>Доступ заблокирован!</b>\n\nВы сможете сыграть снова через: "
+            f"⏳ Доступ заблокирован!\n\nВы сможете сыграть снова через: "
             f"<code>{min_rem:02d} мин. {sec_rem:02d} сек.</code>"
         )
         return
@@ -503,7 +504,7 @@ async def inline_callback_handler(update: Update, context: ContextTypes.DEFAULT_
             [InlineKeyboardButton("Попал 🏀 (множитель x1.6)", callback_data="predict_basket_Попал")],
             [InlineKeyboardButton("Мимо 💨 (множитель x2.4)", callback_data="predict_basket_Мимо")]
         ])
-        await query.edit_message_text("🏀 <b>Сделайте ваш прогноз:</b> попадет ли мяч в кольцо?", reply_markup=keyboard)
+        await query.edit_message_text("🏀 Сделайте ваш прогноз: попадет ли мяч в кольцо?", reply_markup=keyboard)
         return
 
     # Обработка результатов прогнозов
