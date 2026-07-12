@@ -364,13 +364,13 @@ async def inline_callback_handler(update: Update, context: ContextTypes.DEFAULT_
                 except Exception:
                     pass
             
-                        await query.edit_message_text(
-                "🎉 <b>Проверка успешно пройдена!</b>\nВсе функции и меню заработка полностью разблокированы для вас.",
-                reply_markup=get_main_inline_keyboard(),
-                parse_mode="HTML"
-            )
-        else:
-            await query.message.reply_text("❌ Ошибка: вы подписались не на все каналы. Проверьте подписки и попробуйте еще раз.")
+                await query.edit_message_text(
+            "🎉 <b>Проверка успешно пройдена!</b>\nВсе функции и меню заработка полностью разблокированы для вас.",
+            reply_markup=get_main_inline_keyboard(),
+            parse_mode="HTML"
+                )
+    else:
+        await query.message.reply_text("❌ Ошибка: вы подписались не на все каналы...")
         return
 
 
