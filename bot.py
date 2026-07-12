@@ -374,18 +374,18 @@ async def inline_callback_handler(update: Update, context: ContextTypes.DEFAULT_
         return
 
 
-    elif data.startswith("check_sub_"):
-        count = int(data.split("_")[2])
+    elif data.startswith("check_sub_"): 
+        count = int(data.split("_")[2]) 
         sponsors = await get_piarflow_sponsors(count)
         is_subscribed = await check_piarflow_subscriptions(user_id, sponsors)
-        
-        if is_subscribed:
-            reward = count * REWARD_SPONSOR
+
+        if is_subscribed: 
+            reward = count * REWARD_SPONSOR 
             db_add_reward(user_id, reward, f"Спонсоры: {count}")
-            
-            await query.edit_message_text(
+
+            await query.edit_message_text( 
                 f"🎉 <b>Задание выполнено!</b>\n"
-                f"Награда в размере <code>{reward:,} mCoin</code> успешно начислена на ваш баланс.",
+                f"Награда в размере <code>{reward:,} mCoin</code> успешно начислена...",
                 reply_markup=get_back_keyboard(),
                 parse_mode="HTML"
             )
