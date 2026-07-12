@@ -364,7 +364,7 @@ async def inline_callback_handler(update: Update, context: ContextTypes.DEFAULT_
                 except Exception:
                     pass
             
-            await query.edit_message_text(
+                        await query.edit_message_text(
                 "🎉 <b>Проверка успешно пройдена!</b>\nВсе функции и меню заработка полностью разблокированы для вас.",
                 reply_markup=get_main_inline_keyboard(),
                 parse_mode="HTML"
@@ -373,6 +373,41 @@ async def inline_callback_handler(update: Update, context: ContextTypes.DEFAULT_
             await query.message.reply_text("❌ Ошибка: вы подписались не на все каналы. Проверьте подписки и попробуйте еще раз.")
         return
 
+
+    elif data.startswith("check_sub_"):
+        count = int(data.split("_")[2])
+        sponsors = await get_piarflow_sponsors(count)
+        is_subscribed = await check_piarflow_subscriptions(user_id, sponsors)
+        
+        if is_subscribed:
+            reward = count * REWARD_SPONSOR
+            db_add_reward(user_id, reward, f"Спонсоры: {count}")
+            
+            await query.edit_message_text(
+                f"🎉 <b>Задание выполнено!</b>\n"
+                f"Награда в размере <code>{reward:,} mCoin</code> успешно начислена на ваш баланс.",
+                reply_markup=get_back_keyboard(),
+                parse_mode="HTML"
+            )
+            
+            try:
+                await context.bot.send_message(
+                    chat_id=REPORT_CHANNEL,
+                    text=f"👤 Пользователь ID: {user_id}\n💰 Выполнено подписок: {count}\n🎁 Начислено: {reward:,} mCoin"
+                )
+            except Exception as e:
+                logger.error(f"Не удалось отправить отчет в канал: {e}")
+        else:
+            error_text = (
+                "❌ <b>Ошибка выдачи:</b> обратитесь к администратору "
+                "https://t.me/SkeletMines?direct"
+            )
+            await query.message.reply_text(error_text, parse_mode="HTML", disable_web_page_preview=True)
+        return
+
+    # Дальше в коде уже идет кнопка "menu_get_mcoin"
+    elif data == "menu_get_mcoin":
+        
     # Выбор спонсоров для ЗАРАБОТКА
     elif data == "menu_get_mcoin":
         await query.edit_message_text(
