@@ -431,10 +431,9 @@ async def inline_callback_handler(update: Update, context: ContextTypes.DEFAULT_
         bot_info = await context.bot.get_me()
         link = f"https://t.me/{bot_info.username}?start=ref_{user_id}"
         text = (
-    f"<b>👥 РЕФЕРАЛЬНАЯ СИСТЕМА</b>\n"
-    f"{'=' * 30}\n"
-    f"Приглашайте друзей и получайте mCoin!\n\n"
-        )
+            f"<b>👥 РЕФЕРАЛЬНАЯ СИСТЕМА</b>\n"
+            f"{'=' * 30}\n"
+            f"Приглашайте друзей и получайте mCoin!\n\n"
             f"🎁 <b>Бонус:</b> вы получите <code>{REFERRAL_REWARD:,} mCoin</code> за каждого приведенного реферала, "
             f"когда он пройдет первую проверку подписок.\n\n"
             f"🔗 <b>Ваша ссылка для приглашений:</b>\n<code>{link}</code>"
