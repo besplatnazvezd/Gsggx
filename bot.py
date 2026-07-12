@@ -611,7 +611,7 @@ async def play_dice(query, context, prediction: int, count: int):
         db_add_reward(user_id, reward, "Кубик")
         await query.message.reply_text(f"🎲 <b>УГАДАЛИ!</b>\n\nВыпало число: {val}. Начислено: +{reward:,} mCoin!", reply_markup=get_back_keyboard())
     else:
-        await query.message.reply_text(f"😢 <b>НЕ УГАДАЛИ!</b>\n\nВыпало число: {val}, ваш выбор: {prediction}. Ничего страшного, баланс сохранен!", reply_markup=get_back_keyboard())
+        await query.message.reply_text(f"😢 НЕ УГАДАЛИ!\n\nВыпало число: {val}, ваш выбор: {prediction}. Ничего страшного, баланс сохранен!", reply_markup=get_back_keyboard())
 
 async def play_basketball(query, context, prediction: str, count: int):
     user_id = query.from_user.id
