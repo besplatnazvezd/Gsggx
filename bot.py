@@ -371,10 +371,10 @@ async def inline_callback_handler(update: Update, context: ContextTypes.DEFAULT_
                 )
     else:
         await query.message.reply_text("❌ Ошибка: вы подписались не на все каналы...")
-        return
+        return 
+    
 
-
-     elif data.startswith("check_sub_"): 
+       elif data.startswith("check_sub_"): 
         count = int(data.split("_")[2]) 
         sponsors = await get_piarflow_sponsors(count)
         is_subscribed = await check_piarflow_subscriptions(user_id, sponsors)
