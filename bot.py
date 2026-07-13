@@ -152,7 +152,7 @@ def get_main_keyboard() -> InlineKeyboardMarkup:
         [InlineKeyboardButton("📝 Оформить Техническое Задание", callback_data="btn_new_project")],
         [InlineKeyboardButton("💼 Мои текущие заказы", callback_data="btn_my_projects")],
         [InlineKeyboardButton("⚖️ Юридическая Оферта и Тарифы", callback_data="btn_show_tos")],
-        [InlineKeyboardButton("📞 Связаться с главным инженером", url=f"https://t.me/{OWNER_CONTACT.replace('@', '')}")]
+        [InlineKeyboardButton("📞 Связаться с главным инженером", url=f"https://t.me/{OWNER_CONTACT.replace('@nmproda', '')}")]
     ])
 
 def get_back_to_menu_keyboard() -> InlineKeyboardMarkup:
@@ -237,7 +237,7 @@ async def inline_callback_handler(update: Update, context: ContextTypes.DEFAULT_
             f"• Вся разработка осуществляется строго по утвержденному ТЗ.\n"
             f"• Любые переделки, доработки кода, добавление кнопок, изменение функционала или "
             f"интеграция дополнительных API после утверждения ТЗ оплачиваются строго пакетами.\n"
-            f"• Стоимость Пакета Модификаций составляет 50,000 mCoin (или эквивалент в GMP/Stars).\n"
+            f"• Стоимость Пакета Модификаций составляет 75,000 mCoin (или эквивалент в GMP/Stars).\n"
             f"• В один Пакет Модификаций входит ровно 4 (четыре) отдельных изменения средней сложности.\n"
             f"• Отдельные мелкие правки вне пакета не выполняются.\n\n"
             f"3. ПРИЕМКА ПРОЕКТОВ\n"
@@ -424,7 +424,7 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text(
             "Техническое задание зафиксировано.\n\n"
             "Напишите желаемый бюджет проекта и валюту, в которой планируете производить оплату "
-            "(Например: 150k mCoin, 2 GMP или 350 Stars Telegram):",
+            "(Например: 750k mCoin, 3 GMP или 200 Stars Telegram):",
             reply_markup=get_cancel_submission_keyboard()
         )
         return
@@ -435,7 +435,7 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text(
             "Условия бюджета зафиксированы.\n\n"
             "Пожалуйста, укажите ваш точный юзернейм в Telegram или другие контактные данные для "
-            "связи (например: @SkeletMines):",
+            "связи (например: @nmproda):",
             reply_markup=get_cancel_submission_keyboard()
         )
         return
