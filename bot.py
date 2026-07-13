@@ -21,7 +21,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 ADMIN_ID = int(os.getenv("ADMIN_ID", 0))
 
 # 🖼 ССЫЛКИ НА КАРТИНКИ (Замените на свои, когда будут готовы!)
-CHECK_IMAGE_URL = "https://i.postimg.cc/mD7gV4m9/check-default.png" # Картинка для чека
+CHECK_IMAGE_URL = "https://i.ibb.co/tMRTCg7c/IMG-20260714-004428-315.jpg" # Картинка для чека
 DEFAULT_NFT_IMAGE = "https://i.postimg.cc/85zXfM7h/nft-placeholder.png" # Дефолтная картинка для NFT
 
 bot = Bot(token=BOT_TOKEN)
