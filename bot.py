@@ -354,7 +354,7 @@ async def cb_crypto_list(callback: types.CallbackQuery):
 @dp.callback_query(F.data.startswith("buy_crypto_pack:"))
 async def cb_buy_crypto_pack(callback: types.CallbackQuery):
     nmp_amount = int(callback.data.split(":")[1])
-    pay_url = await create_cryptobot_invoice(nmp_amount)
+    pay_url = await create_cryptobot_invoice(callback.from_user.id, nmp_amount)
     
     if pay_url:
         builder = InlineKeyboardBuilder()
