@@ -890,7 +890,11 @@ async def main():
     asyncio.create_task(financial_background_scheduler())
     await dp.start_polling(bot)
 
+
 if __name__ == "__main__":
-    # Запускаем веб-сервер на порту 8000. 
-    # bot — это имя вашего файла (bot.py), app — объект FastAPI
-    uvicorn.run("bot:app", host="0.0.0.0", port=8000, reload=True)
+    # Railway автоматически передает порт в переменную окружения PORT.
+    # Если её нет (например, при локальном запуске), будет использоваться порт 8000.
+    port = int(os.getenv("PORT", 8000))
+    
+    # Запускаем сервер
+    uvicorn.run("bot:app", host="0.0.0.0", port=port)
