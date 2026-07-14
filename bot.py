@@ -74,8 +74,11 @@ async def init_db():
     global db_pool
     db_pool = await asyncpg.create_pool(dsn=DATABASE_URL, statement_cache_size=0)
 
-# Исправленная функция создания инвойса в CryptoBot с обходом ошибки DNS на Railway
+# Полностью автономная и защищенная функция создания счета
 async def create_cryptobot_invoice(user_id: int, nmp_amount: float):
+    import socket  # Импортируем прямо здесь, чтобы избежать NameError
+    import aiohttp
+    
     # Курс: 98 NMP = 1 USD
     usd_amount = nmp_amount / 98.0
     url = "https://pay.cryptobot.app/api/createInvoice"
@@ -85,22 +88,25 @@ async def create_cryptobot_invoice(user_id: int, nmp_amount: float):
         "asset": "USDT",
         "amount": f"{usd_amount:.2f}",
         "description": f"Пополнение счета на {nmp_amount} NMP",
-        "payload": f"{user_id}:{nmp_amount}"  # Формат "telegram_id:amount"
+        "payload": f"{user_id}:{nmp_amount}"
     }
 
-    # Настройка коннектора для принудительного использования IPv4 (решает проблему Name or service not known)
+    # Принудительный IPv4 коннектор
     connector = aiohttp.TCPConnector(family=socket.AF_INET)
 
     try:
         async with aiohttp.ClientSession(connector=connector) as session:
-            async with session.post(url, headers=headers, json=payload) as resp:
+            async with session.post(url, headers=headers, json=payload, timeout=10) as resp:
                 data = await resp.json()
                 if data.get("ok"):
                     return data["result"]["pay_url"]
                 else:
-                    logging.error(f"Ошибка CryptoBot API: {data}")
+                    # Выводим точную ошибку от CryptoBot в логи Railway
+                    print(f"❌ Ошибка от CryptoBot API: {data}")
     except Exception as e:
-        logging.error(f"Ошибка при создании счета CryptoBot: {e}")
+        # Выводим системную ошибку (например, DNS или тайм-аут) в логи
+        print(f"❌ Системная ошибка при запросе к CryptoBot: {e}")
+        
     return None
     # Проверка подлинности вебхука от CryptoBot
 def verify_cryptobot_signature(body: bytes, signature: str) -> bool:
