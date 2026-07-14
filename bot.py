@@ -14,6 +14,11 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.types import InlineQueryResultArticle, InputTextMessageContent, LabeledPrice
 from dotenv import load_dotenv
+from fastapi import FastAPI, Request, HTTPException
+import uvicorn
+from contextlib import asynccontextmanager
+
+load_dotenv()
 
 load_dotenv()
 
@@ -27,10 +32,31 @@ CRYPTO_PAY_TOKEN = os.getenv("CRYPTO_PAY_TOKEN", "")
 CHECK_IMAGE_URL = "https://i.ibb.co/tMRTCg7c/IMG-20260714-004428-315.jpg"
 DEFAULT_NFT_IMAGE = "https://i.postimg.cc/85zXfM7h/nft-placeholder.png"
 
+# Инициализация бота и БД
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 db_pool = None
 
+# Настраиваем автозапуск БД и Бота вместе с веб-сервером
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Код, который выполнится при старте сервера:
+    await init_db()  # Запускаем вашу функцию инициализации БД
+    
+    # Запускаем поллинг бота в фоновом режиме, чтобы он не блокировал сайт
+    polling_task = asyncio.create_task(dp.start_polling(bot))
+    print("🚀 Бот и база данных успешно запущены!")
+    
+    yield  # Здесь сервер работает и принимает запросы
+    
+    # Код при выключении сервера:
+    polling_task.cancel()
+    if db_pool:
+        await db_pool.close()
+    print("🛑 Сервер и бот остановлены.")
+
+# Создаем приложение FastAPI
+app = FastAPI(lifespan=lifespan)
 # Стейты FSM
 class Form(StatesGroup):
     waiting_for_promo = State()
@@ -47,29 +73,89 @@ async def init_db():
     global db_pool
     db_pool = await asyncpg.create_pool(dsn=DATABASE_URL)
 
-# Функция создания инвойса в CryptoBot ($1 = 98 NMP)
-async def create_cryptobot_invoice(nmp_amount: float):
+# Исправленная функция создания инвойса в CryptoBot ($1 = 98 NMP)
+async def create_cryptobot_invoice(user_id: int, nmp_amount: float):
     # Курс: 98 NMP = 1 USD
     usd_amount = nmp_amount / 98.0
     url = "https://pay.cryptobot.app/api/createInvoice"
     headers = {"Crypto-Pay-API-Token": CRYPTO_PAY_TOKEN}
+    
+    # Теперь в payload мы передаем и ID пользователя, и сумму пополнения через двоеточие
     payload = {
-        "asset": "USDT", # Будем принимать оплату в стейблкоинах USDT
+        "asset": "USDT",
         "amount": f"{usd_amount:.2f}",
         "description": f"Пополнение счета на {nmp_amount} NMP",
-        "payload": f"crypto_nmp_{nmp_amount}"
+        "payload": f"{user_id}:{nmp_amount}"  # Формат "telegram_id:amount"
     }
-    
+
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(url, headers=headers, json=payload) as resp:
                 data = await resp.json()
                 if data.get("ok"):
                     return data["result"]["pay_url"]
+                else:
+                    logging.error(f"Ошибка CryptoBot API: {data}")
     except Exception as e:
-        logging.error(f"Ошибка CryptoBot: {e}")
+        logging.error(f"Ошибка при создании счета CryptoBot: {e}")
     return None
+    # Проверка подлинности вебхука от CryptoBot
+def verify_cryptobot_signature(body: bytes, signature: str) -> bool:
+    secret = hashlib.sha256(CRYPTO_PAY_TOKEN.encode()).digest()
+    hmac_signature = hmac.new(secret, body, hashlib.sha256).hexdigest()
+    return hmac_signature == signature
 
+@app.post("/webhooks/cryptopay")
+async def cryptopay_webhook(request: Request):
+    body = await request.body()
+    signature = request.headers.get("crypto-pay-api-signature")
+    
+    if not signature or not verify_cryptobot_signature(body, signature):
+        raise HTTPException(status_code=400, detail="Invalid signature")
+
+    data = await request.json()
+    
+    if data.get("update_type") == "invoice_paid":
+        payload_data = data["update_type_data"]["payload"]
+        try:
+            user_id_str, amount_str = payload_data.split(":")
+            user_id = int(user_id_str)
+            amount_nmp = float(amount_str)
+        except ValueError:
+            logging.error(f"Неверный формат payload в вебхуке: {payload_data}")
+            return {"status": "error"}
+
+        global db_pool
+        async with db_pool.acquire() as conn:
+            async with conn.transaction():
+                # 1. Начисляем баланс (в вашей таблице users колонка баланса)
+                await conn.execute(
+                    "UPDATE users SET balance = balance + $1 WHERE telegram_id = $2",
+                    amount_nmp, user_id
+                )
+                
+                # 2. Записываем в транзакции (у вас структура: id, user_id, amount, tx_type, description, created_at)
+                # Поля сопоставлены с вашей реальной таблицей transactions со скриншота!
+                await conn.execute(
+                    """
+                    INSERT INTO transactions (user_id, amount, tx_type, description, created_at)
+                    VALUES ($1, $2, 'deposit_crypto', $3, NOW())
+                    """,
+                    user_id, amount_nmp, f"Пополнение через Crypto Pay (+{amount_nmp} NMP)"
+                )
+                
+        logging.info(f"Баланс пользователя {user_id} успешно пополнен на {amount_nmp} NMP!")
+        
+        # Отправляем сообщение об успешной оплате в ЛС бота
+        try:
+            await bot.send_message(user_id, f"💳 Ваш баланс успешно пополнен на *{amount_nmp} NMP*!", parse_mode="Markdown")
+        except Exception as e:
+            logging.error(f"Не удалось отправить уведомление пользователю: {e}")
+
+        return {"status": "success"}
+
+    return {"status": "ignored"}
+    
 # Получение бустов от NFT
 async def get_user_boosts(conn, user_id: int):
     row = await conn.fetchrow(
@@ -805,4 +891,6 @@ async def main():
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    # Запускаем веб-сервер на порту 8000. 
+    # bot — это имя вашего файла (bot.py), app — объект FastAPI
+    uvicorn.run("bot:app", host="0.0.0.0", port=8000, reload=True)
