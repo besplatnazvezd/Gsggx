@@ -24,7 +24,7 @@ ADMIN_ID = int(os.getenv("ADMIN_ID", 0))
 # Токен CryptoBot от @CryptoBot -> API -> App -> Create App
 CRYPTO_PAY_TOKEN = os.getenv("CRYPTO_PAY_TOKEN", "") 
 
-CHECK_IMAGE_URL = "https://i.postimg.cc/mD7gV4m9/check-default.png"
+CHECK_IMAGE_URL = "https://i.ibb.co/tMRTCg7c/IMG-20260714-004428-315.jpg"
 DEFAULT_NFT_IMAGE = "https://i.postimg.cc/85zXfM7h/nft-placeholder.png"
 
 bot = Bot(token=BOT_TOKEN)
