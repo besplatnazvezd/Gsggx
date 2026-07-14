@@ -5,6 +5,7 @@ import random
 import uuid
 import secrets
 import aiohttp
+import socket
 from datetime import datetime, timedelta
 import asyncpg
 from aiogram import Bot, Dispatcher, F, types
@@ -73,14 +74,13 @@ async def init_db():
     global db_pool
     db_pool = await asyncpg.create_pool(dsn=DATABASE_URL)
 
-# Исправленная функция создания инвойса в CryptoBot ($1 = 98 NMP)
+# Исправленная функция создания инвойса в CryptoBot с обходом ошибки DNS на Railway
 async def create_cryptobot_invoice(user_id: int, nmp_amount: float):
     # Курс: 98 NMP = 1 USD
     usd_amount = nmp_amount / 98.0
     url = "https://pay.cryptobot.app/api/createInvoice"
     headers = {"Crypto-Pay-API-Token": CRYPTO_PAY_TOKEN}
     
-    # Теперь в payload мы передаем и ID пользователя, и сумму пополнения через двоеточие
     payload = {
         "asset": "USDT",
         "amount": f"{usd_amount:.2f}",
@@ -88,8 +88,11 @@ async def create_cryptobot_invoice(user_id: int, nmp_amount: float):
         "payload": f"{user_id}:{nmp_amount}"  # Формат "telegram_id:amount"
     }
 
+    # Настройка коннектора для принудительного использования IPv4 (решает проблему Name or service not known)
+    connector = aiohttp.TCPConnector(family=socket.AF_INET)
+
     try:
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(connector=connector) as session:
             async with session.post(url, headers=headers, json=payload) as resp:
                 data = await resp.json()
                 if data.get("ok"):
