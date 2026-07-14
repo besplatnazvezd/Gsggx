@@ -726,14 +726,31 @@ async def process_custom_handle(message: types.Message, state: FSMContext):
 async def cb_merchant_api(callback: types.CallbackQuery):
     user_id = callback.from_user.id
     async with db_pool.acquire() as conn:
+        # Проверяем, есть ли уже ключ у пользователя
         key = await conn.fetchrow("SELECT api_key FROM merchant_api_keys WHERE user_id = $1", user_id)
+        
         if not key:
-            await conn.execute("INSERT INTO merchant_api_keys (user_id, service_name) VALUES ($1, 'По умолчанию')", user_id)
-            key = await conn.fetchrow("SELECT api_key FROM merchant_api_keys WHERE user_id = $1", user_id)
-    text = f"🔗 *NMVal Merchant API*\n\n🔑 Токен:\n`{key['api_key']}`"
-    builder = InlineKeyboardBuilder().button(text="🔙 В меню", callback_data="main_menu")
-    await callback.message.edit_text(text, reply_markup=builder.as_markup(), parse_mode="Markdown")
-
+            # Генерируем уникальный криптографически стойкий API-ключ
+            generated_key = f"nm_{secrets.token_hex(24)}"  # Пример формата: nm_... (всего 51 символ)
+            # Если префикс не нужен, можно просто: secrets.token_hex(32)
+            
+            # Сохраняем сгенерированный ключ в базу данных
+            await conn.execute(
+                "INSERT INTO merchant_api_keys (user_id, service_name, api_key) VALUES ($1, 'По умолчанию', $2)",
+                user_id, generated_key
+            )
+            api_key_text = generated_key
+        else:
+            api_key_text = key['api_key']
+        
+        text = f"🔗 *NMVal Merchant API*\n\n🔑 Токен:\n`{api_key_text}`"
+        builder = InlineKeyboardBuilder().button(text="⬅️ В меню", callback_data="main_menu")
+        
+        await callback.message.edit_text(
+            text, 
+            reply_markup=builder.as_markup(), 
+            parse_mode="Markdown"
+        )
 # Промокоды
 @dp.callback_query(F.data == "promo_activate")
 async def cb_promo_activate(callback: types.CallbackQuery, state: FSMContext):
