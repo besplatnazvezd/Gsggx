@@ -74,10 +74,10 @@ async def init_db():
     global db_pool
     db_pool = await asyncpg.create_pool(dsn=DATABASE_URL, statement_cache_size=0)
 
-# Полностью автономная и защищенная функция создания счета
+# Полностью стабильная функция создания счета через requests и asyncio.to_thread
 async def create_cryptobot_invoice(user_id: int, nmp_amount: float):
-    import socket  # Импортируем прямо здесь, чтобы избежать NameError
-    import aiohttp
+    import asyncio
+    import requests  # Использование requests решает проблему DNS на Railway раз и навсегда
     
     # Курс: 98 NMP = 1 USD
     usd_amount = nmp_amount / 98.0
@@ -91,21 +91,25 @@ async def create_cryptobot_invoice(user_id: int, nmp_amount: float):
         "payload": f"{user_id}:{nmp_amount}"
     }
 
-    # Принудительный IPv4 коннектор
-    connector = aiohttp.TCPConnector(family=socket.AF_INET)
+    # Внутренняя функция для отправки запроса в фоновом режиме
+    def send_request():
+        try:
+            response = requests.post(url, headers=headers, json=payload, timeout=10)
+            return response.json()
+        except Exception as e:
+            print(f"❌ Ошибка при отправке запроса через requests: {e}")
+            return None
 
     try:
-        async with aiohttp.ClientSession(connector=connector) as session:
-            async with session.post(url, headers=headers, json=payload, timeout=10) as resp:
-                data = await resp.json()
-                if data.get("ok"):
-                    return data["result"]["pay_url"]
-                else:
-                    # Выводим точную ошибку от CryptoBot в логи Railway
-                    print(f"❌ Ошибка от CryptoBot API: {data}")
+        # Запускаем синхронный requests в отдельном потоке, чтобы бот не зависал
+        data = await asyncio.to_thread(send_request)
+        
+        if data and data.get("ok"):
+            return data["result"]["pay_url"]
+        else:
+            print(f"❌ Ошибка от CryptoBot API: {data}")
     except Exception as e:
-        # Выводим системную ошибку (например, DNS или тайм-аут) в логи
-        print(f"❌ Системная ошибка при запросе к CryptoBot: {e}")
+        print(f"❌ Системная ошибка при генерации счета: {e}")
         
     return None
     # Проверка подлинности вебхука от CryptoBot
