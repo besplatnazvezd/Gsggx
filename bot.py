@@ -72,7 +72,7 @@ class Form(StatesGroup):
 
 async def init_db():
     global db_pool
-    db_pool = await asyncpg.create_pool(dsn=DATABASE_URL)
+    db_pool = await asyncpg.create_pool(dsn=DATABASE_URL, statement_cache_size=0)
 
 # Исправленная функция создания инвойса в CryptoBot с обходом ошибки DNS на Railway
 async def create_cryptobot_invoice(user_id: int, nmp_amount: float):
