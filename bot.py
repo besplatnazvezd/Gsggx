@@ -725,32 +725,37 @@ async def process_custom_handle(message: types.Message, state: FSMContext):
 @dp.callback_query(F.data == "merchant_api")
 async def cb_merchant_api(callback: types.CallbackQuery):
     user_id = callback.from_user.id
-    async with db_pool.acquire() as conn:
-        # Проверяем, есть ли уже ключ у пользователя
-        key = await conn.fetchrow("SELECT api_key FROM merchant_api_keys WHERE user_id = $1", user_id)
-        
-        if not key:
-            # Генерируем уникальный криптографически стойкий API-ключ
-            generated_key = f"nm_{secrets.token_hex(24)}"  # Пример формата: nm_... (всего 51 символ)
-            # Если префикс не нужен, можно просто: secrets.token_hex(32)
+    try:
+        async with db_pool.acquire() as conn:
+            # Проверяем, есть ли уже ключ у пользователя
+            key = await conn.fetchrow("SELECT api_key FROM merchant_api_keys WHERE user_id = $1", user_id)
             
-            # Сохраняем сгенерированный ключ в базу данных
-            await conn.execute(
-                "INSERT INTO merchant_api_keys (user_id, service_name, api_key) VALUES ($1, 'По умолчанию', $2)",
-                user_id, generated_key
+            if not key:
+                # Генерируем валидный UUID (он идеально подходит под тип данных вашей колонки)
+                generated_key = str(uuid.uuid4())
+                
+                # Сохраняем сгенерированный UUID в базу данных
+                await conn.execute(
+                    "INSERT INTO merchant_api_keys (user_id, service_name, api_key) VALUES ($1, 'По умолчанию', $2)",
+                    user_id, generated_key
+                )
+                api_key_text = generated_key
+            else:
+                api_key_text = key['api_key']
+            
+            text = f"🔗 *NMVal Merchant API*\n\n🔑 Токен:\n`{api_key_text}`"
+            builder = InlineKeyboardBuilder().button(text="⬅️ В меню", callback_data="main_menu")
+            
+            await callback.message.edit_text(
+                text, 
+                reply_markup=builder.as_markup(), 
+                parse_mode="Markdown"
             )
-            api_key_text = generated_key
-        else:
-            api_key_text = key['api_key']
-        
-        text = f"🔗 *NMVal Merchant API*\n\n🔑 Токен:\n`{api_key_text}`"
-        builder = InlineKeyboardBuilder().button(text="⬅️ В меню", callback_data="main_menu")
-        
-        await callback.message.edit_text(
-            text, 
-            reply_markup=builder.as_markup(), 
-            parse_mode="Markdown"
-        )
+            
+    except Exception as e:
+        # Если возникнет какая-то другая ошибка, бот не зависнет, а выведет её в логи Railway
+        print(f"Ошибка в cb_merchant_api для {user_id}: {e}")
+        await callback.answer("Произошла ошибка при генерации API. Попробуйте позже.", show_alert=True)
 # Промокоды
 @dp.callback_query(F.data == "promo_activate")
 async def cb_promo_activate(callback: types.CallbackQuery, state: FSMContext):
