@@ -388,17 +388,15 @@ async def check_and_unlock_achievement(conn, user_id: int, condition_type: str):
         logging.warning(f"Не удалось уведомить о достижении {user_id}: {e}")
 
 # ---------------------------------------------------------------------------
-# СЕКРЕТНЫЙ ИНВЕСТ-СИНДИКАТ
+# СЕКРЕТНЫЙ ИНВЕСТ-СИНДИКАТ (исправлено)
 # ---------------------------------------------------------------------------
-@dp.callback_query(F.data == "secret_feature_menu")
-async def cb_secret_feature_menu(callback: types.CallbackQuery):
-    await callback.answer()
-    user_id = callback.from_user.id
-    
+async def show_syndicate_menu(chat_id: int, message_id: int = None, edit: bool = False):
+    """Универсальная функция для отображения меню синдиката."""
+    # Получаем данные из БД
     async with db_pool.acquire() as conn:
         total_tickets = await conn.fetchval("SELECT COUNT(*) FROM pool_entries")
-        user_tickets = await conn.fetch("SELECT ticket_code FROM pool_entries WHERE user_id = $1", user_id)
-        user_bal = await conn.fetchval("SELECT balance FROM users WHERE telegram_id = $1", user_id)
+        user_tickets = await conn.fetch("SELECT ticket_code FROM pool_entries WHERE user_id = $1", chat_id)  # chat_id = user_id
+        user_bal = await conn.fetchval("SELECT balance FROM users WHERE telegram_id = $1", chat_id)
     
     current_pool = total_tickets * 100
     user_ticket_list = [t['ticket_code'] for t in user_tickets]
@@ -419,33 +417,61 @@ async def cb_secret_feature_menu(callback: types.CallbackQuery):
     builder.button(text="🔙 В меню", callback_data="main_menu")
     builder.adjust(1)
     
-    await callback.message.delete()
-    await callback.message.answer_photo(
-        photo=SECRET_FEATURE_IMG,
-        caption=desc_text,
-        reply_markup=builder.as_markup(),
-        parse_mode="Markdown"
-    )
+    try:
+        if edit and message_id:
+            await bot.edit_message_media(
+                chat_id=chat_id,
+                message_id=message_id,
+                media=types.InputMediaPhoto(media=SECRET_FEATURE_IMG, caption=desc_text, parse_mode="Markdown"),
+                reply_markup=builder.as_markup()
+            )
+        else:
+            await bot.send_photo(
+                chat_id=chat_id,
+                photo=SECRET_FEATURE_IMG,
+                caption=desc_text,
+                reply_markup=builder.as_markup(),
+                parse_mode="Markdown"
+            )
+    except Exception as e:
+        logging.error(f"Ошибка при отображении синдиката: {e}")
+        # Если фото не загружается, отправляем текстовое сообщение
+        await bot.send_message(chat_id, desc_text, reply_markup=builder.as_markup(), parse_mode="Markdown")
+
+@dp.callback_query(F.data == "secret_feature_menu")
+async def cb_secret_feature_menu(callback: types.CallbackQuery):
+    await callback.answer()
+    try:
+        # Редактируем текущее сообщение, а не удаляем
+        await show_syndicate_menu(callback.message.chat.id, callback.message.message_id, edit=True)
+    except Exception as e:
+        logging.error(f"Ошибка в cb_secret_feature_menu: {e}")
+        await callback.message.reply("⚠️ Произошла ошибка при загрузке меню. Попробуйте позже.")
 
 @dp.callback_query(F.data == "buy_syndicate_ticket")
 async def cb_buy_syndicate_ticket(callback: types.CallbackQuery):
     user_id = callback.from_user.id
-    async with db_pool.acquire() as conn:
-        async with conn.transaction():
-            user_bal = await conn.fetchval("SELECT balance FROM users WHERE telegram_id = $1 FOR UPDATE", user_id)
-            if user_bal < 100.00:
-                await callback.answer("❌ Недостаточно средств! Требуется 100.00 NMP.", show_alert=True)
-                return
-            ticket_code = f"#SYND-{random.randint(1000, 9999)}"
-            await conn.execute("UPDATE users SET balance = balance - 100 WHERE telegram_id = $1", user_id)
-            await conn.execute("INSERT INTO pool_entries (user_id, ticket_code) VALUES ($1, $2)", user_id, ticket_code)
-            await conn.execute(
-                "INSERT INTO transactions (user_id, amount, tx_type, description) VALUES ($1, -100.00, 'syndicate_buy', $2)",
-                user_id, f"Покупка доли {ticket_code} в Инвест-Синдикате"
-            )
-    await callback.answer(f"🎉 Доля {ticket_code} успешно приобретена!", show_alert=True)
-    await cb_secret_feature_menu(callback)
-
+    try:
+        async with db_pool.acquire() as conn:
+            async with conn.transaction():
+                user_bal = await conn.fetchval("SELECT balance FROM users WHERE telegram_id = $1 FOR UPDATE", user_id)
+                if user_bal < 100.00:
+                    await callback.answer("❌ Недостаточно средств! Требуется 100.00 NMP.", show_alert=True)
+                    return
+                ticket_code = f"#SYND-{random.randint(1000, 9999)}"
+                await conn.execute("UPDATE users SET balance = balance - 100 WHERE telegram_id = $1", user_id)
+                await conn.execute("INSERT INTO pool_entries (user_id, ticket_code) VALUES ($1, $2)", user_id, ticket_code)
+                await conn.execute(
+                    "INSERT INTO transactions (user_id, amount, tx_type, description) VALUES ($1, -100.00, 'syndicate_buy', $2)",
+                    user_id, f"Покупка доли {ticket_code} в Инвест-Синдикате"
+                )
+        await callback.answer(f"🎉 Доля {ticket_code} успешно приобретена!", show_alert=True)
+        # Обновляем меню синдиката (редактируем текущее сообщение)
+        await show_syndicate_menu(callback.message.chat.id, callback.message.message_id, edit=True)
+    except Exception as e:
+        logging.error(f"Ошибка в cb_buy_syndicate_ticket: {e}")
+        await callback.message.reply("⚠️ Ошибка при покупке доли. Попробуйте позже.")
+    
 # ---------------------------------------------------------------------------
 # ОБРАБОТЧИК P2P ПОДТВЕРЖДЕНИЯ ОТ ПОЛЬЗОВАТЕЛЯ
 # ---------------------------------------------------------------------------
